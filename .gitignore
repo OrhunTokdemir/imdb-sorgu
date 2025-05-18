@@ -2,7 +2,12 @@
 __pycache__/
 *.py[cod]
 *$py.class
-
+#api key gizliliği
+anahtar.txt
+#resimler
+*.jpg
+#database
+*.db
 # C extensions
 *.so
 
