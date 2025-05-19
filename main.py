@@ -14,11 +14,17 @@ def download_resim(data):
     if not data['success']:
         print("Arama başarısız")
         return 0
+    
     for i in data['result']:
+        curs=conn.cursor()
+        row=curs.execute('''SELECT * FROM show WHERE imdbID=?''', (i['imdbID'],))
+        if row==None:
+            continue
+        
+        else:
+            print("Film zaten veritabanında mevcut")
         response = requests.get(i['Poster'])
-        print(i['Poster'])
         if response.status_code == 200:
-
             try:
                 with open('./resim/' + i['imdbID'] + '.jpg', 'wb') as file:
                     file.write(response.content)
@@ -26,14 +32,17 @@ def download_resim(data):
                 print("Resim kaydedilemedi")
                 return 0
 def get_resim(imdbID):
-    
     try:
-        im = Image.open('./resim/' + imdbID + '.jpg')
+        dizin = './resim/' + imdbID + '.jpg'
+        im = Image.open(dizin)
+        
         img = ImageTk.PhotoImage(im.resize((64,64)))
+        print(f"PhotoImage başarıyla oluşturuldu: {imdbID}.jpg")
         return img
-    except:
-        print("Resim bulunamadı")
+    except FileNotFoundError:
+        print(f"Resim dosyası bulunamadı: {dizin}")
         return None
+    
 def get_data(film_adi):
     conn = http.client.HTTPSConnection("api.collectapi.com")
     headers = {
@@ -64,16 +73,30 @@ def set_veritabani():
         )
     ''')
     root.commit()
-conn=set_veritabani
+def get_baglanti():
+    #veritabanı bağlantısı
+    try:
+        conn = sqlite3.connect('veri.db', isolation_level=None)
+        print("Veritabanına bağlanıldı")
+        return conn
+    except sqlite3.Error as e:
+        print("Veritabanı bağlantı hatası:", e)
+        exit(1) 
+set_veritabani()
+conn=get_baglanti()
 data=get_data("cars")
+download_resim(data)
 
-img = get_resim("tt0071282")
-pencere = Tk()
+pencere=Tk()
 pencere.title("Film Arama")
-yazi = Label(pencere, text="Film Adı", bg="blue", anchor="w", image=img)
-yazi.image = img  # Keep a reference to the image
-
-yazi.pack(anchor="w")
+canvas = Canvas(pencere, width = 100, height = 100)      
+canvas.pack()      
+imdbID = "tt0071282"
+img=get_resim("tt0071282")
+lbl=Label(pencere, text="Film Arama", font=("Arial", 20),image=img)  
+lbl.image=img
+lbl.pack(side=TOP)
+mainloop()  
 pencere.mainloop()
 
 
