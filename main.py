@@ -55,37 +55,35 @@ def get_data(film_adi):
         'content-type': "application/json",
         'authorization': "apikey "+get_anahtar()
         }
+    
+    conn.request("GET", "/imdb/imdbSearchByName?query="+film_adi, headers=headers)
+    res = conn.getresponse()
+    data = res.read()
+    data = json.loads(data)
+    print("data:", data)
+    download_resim(data)
+    root=get_baglanti()
+    cursor=root.cursor()
+    item_list=[]
+    for i in data['result']:
+        item_tuple = (
+            i.get('Title'),   # values ? dict okuyamadığı için list içinde tuple lar oluşturuyoruz 
+            i.get('Year'),     
+            i.get('imdbID'),   
+            i.get('Type'),     
+            i.get('Poster'))
+        item_list.append(item_tuple)
     try:
-        conn.request("GET", "/imdb/imdbSearchByName?query="+film_adi, headers=headers)
-        res = conn.getresponse()
-        data = res.read()
-        data = json.loads(data)
-        download_resim(data)
-
-        root=get_baglanti()
-        cursor=root.cursor()
-        item_list=[]
-        for i in data['result']:
-            item_tuple = (
-                i.get('Title'),   # values ? dict okuyamadığı için list içinde tuple lar oluşturuyoruz 
-                i.get('Year'),     
-                i.get('imdbID'),   
-                i.get('Type'),     
-                i.get('Poster'))
-            item_list.append(item_tuple)
-        try:
-            cursor.executemany(
-                '''INSERT INTO show(title, year, imdbID, type, poster) VALUES(?, ?, ?, ?, ?)''',
-                item_list)
-            root.commit()
-            root.close()
-            return data
-        except sqlite3.IntegrityError:
-            print("Veritabanında zaten mevcut")
-            return data
-    except Exception as e:
-        print("Hata:", e)
-        exit(1)
+        cursor.executemany(
+            '''INSERT INTO show(title, year, imdbID, type, poster) VALUES(?, ?, ?, ?, ?)''',
+            item_list)
+        root.commit()
+        root.close()
+        return data
+    except sqlite3.IntegrityError:
+        print("Veritabanında zaten mevcut")
+        return data
+    
     
 def set_veritabani():
     #veritabanı bağlantısı ve tablo oluşturma
@@ -115,33 +113,86 @@ set_veritabani()
 conn=get_baglanti()
 
 def list_shows(name):
+    # Clear previous results from cerceve
+    for widget in cerceve.winfo_children():
+        widget.destroy()
+
     data = get_data(name)
+    if not data or not data.get("result"): # Check if data or data["result"] is None or empty
+        print("No results found or error in fetching data.")
+        # Optionally, display a message in the UI
+        lbl = Label(cerceve, text="No results found.")
+        lbl.grid(row=0, column=0)
+        # Update canvas scrollregion in case cerceve is empty
+        cerceve.update_idletasks() # Ensure widgets are processed
+        my_canvas.config(scrollregion=my_canvas.bbox("all"))
+        return
+
     download_resim(data)
     for idx, i in enumerate(data["result"]):
         lbl = Label(cerceve, font="Century 16", borderwidth=6, relief="solid",
                     text="İsim:" + i["Title"] + "\n" +
                          "Yıl:" + i["Year"] + "\n" +
                          "Tür:" + i["Type"])
-        lbl.grid(row=idx, column=0)
+        lbl.grid(row=idx, column=0, sticky="ew", padx=5, pady=5) # Added sticky and padding
         img = get_resim(i['imdbID'])
-        lbl2 = Label(cerceve, image=img)
-        lbl2.image = img  # keep a reference!
-        lbl2.grid(row=idx, column=1)
+        if img: # Check if image was loaded successfully
+            lbl2 = Label(cerceve, image=img)
+            lbl2.image = img  # keep a reference!
+            lbl2.grid(row=idx, column=1, padx=5, pady=5) # Added padding
+
+    # Update canvas scrollregion after adding new widgets
+    cerceve.update_idletasks() # Ensure widgets are processed before getting bbox
+    my_canvas.config(scrollregion=my_canvas.bbox("all"))
 
 
 pencere=Tk()
 yazi=Label(pencere, text="Film Arama")
-yazi.pack(side=TOP)
+yazi.pack(side=TOP, pady=5) # Added padding
 ent = Entry(pencere, width=50)
-ent.pack(side=TOP)
+ent.pack(side=TOP, pady=5) # Added padding
 btn=Button(pencere, text="Ara", command=lambda: list_shows(ent.get()))
-btn.pack(side=TOP)
+btn.pack(side=TOP, pady=5) # Added padding
 pencere.title("Film Arama")
-scrollbar = Scrollbar(pencere)
+
+# Create a main frame to hold the canvas and scrollbar
+main_scroll_frame = Frame(pencere)
+main_scroll_frame.pack(fill=BOTH, expand=1, padx=10, pady=10) # Added padding and expand
+
+# Create a canvas
+my_canvas = Canvas(main_scroll_frame)
+my_canvas.pack(side=LEFT, fill=BOTH, expand=1)
+
+# Add a scrollbar to the main frame
+scrollbar = Scrollbar(main_scroll_frame, orient=VERTICAL, command=my_canvas.yview)
 scrollbar.pack(side=RIGHT, fill=Y)
-cerceve=Frame(pencere)
-cerceve.pack(side=LEFT)
-scrollbar.config(command=cerceve.yview)
+
+# Configure the canvas
+my_canvas.configure(yscrollcommand=scrollbar.set)
+# Bind canvas resizing to update scrollregion of the inner frame
+# It's often better to bind to the inner frame's configure event if its size dictates the scrollregion
+# However, for simplicity with grid, updating after list_shows and on canvas configure can work.
+
+def on_canvas_configure(event):
+    # Update the scrollregion to encompass the cerceve frame
+    # This ensures that if the canvas itself is resized (e.g. window resize),
+    # the scrollregion is correctly set based on cerceve's current content.
+    # We use cerceve.winfo_reqwidth() to get the required width for cerceve.
+    my_canvas.configure(scrollregion=my_canvas.bbox("all"))
+    # If you want the canvas to only scroll vertically and cerceve to expand horizontally:
+    # my_canvas.itemconfig(cerceve_window, width=event.width)
+
+
+my_canvas.bind('<Configure>', on_canvas_configure)
+
+
+# Create ANOTHER frame INSIDE the canvas - this is our cerceve
+cerceve = Frame(my_canvas) # cerceve is now a child of my_canvas
+
+# Add that new frame to a window in the canvas
+# This window item on the canvas will hold our cerceve frame
+cerceve_window = my_canvas.create_window((0,0), window=cerceve, anchor="nw")
+
 
 #ent=Entry(pencere, width=50)
 #ent.pack(side=TOP)
@@ -150,7 +201,7 @@ scrollbar.config(command=cerceve.yview)
 #************************
 
 #************************
-mainloop()  
+#mainloop() # Removed one of the mainloop calls
 pencere.mainloop()
 
 
