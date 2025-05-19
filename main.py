@@ -130,11 +130,18 @@ def list_shows(name):
 
 
 pencere=Tk()
-btn=Button(pencere, text="Ara", command=lambda: list_shows("cars"))
+yazi=Label(pencere, text="Film Arama")
+yazi.pack(side=TOP)
+ent = Entry(pencere, width=50)
+ent.pack(side=TOP)
+btn=Button(pencere, text="Ara", command=lambda: list_shows(ent.get()))
 btn.pack(side=TOP)
 pencere.title("Film Arama")
+scrollbar = Scrollbar(pencere)
+scrollbar.pack(side=RIGHT, fill=Y)
 cerceve=Frame(pencere)
 cerceve.pack(side=LEFT)
+scrollbar.config(command=cerceve.yview)
 
 #ent=Entry(pencere, width=50)
 #ent.pack(side=TOP)
