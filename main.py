@@ -85,6 +85,9 @@ def download_resim(data):
         # Removed the general "except:" that could hide errors.
         # The "return 0" on failure was causing the whole download process to stop.
         # Now it just skips the problematic image.
+#canvasa scrollbar ekle
+def kaydirma_cubugu(event):
+    canvas.configure(scrollregion=canvas.bbox("all"))
 
 def get_resim(imdbID):
     try:
@@ -261,11 +264,9 @@ canvas.pack(side="left", fill="both", expand=True)
 
 cerceve=Frame(canvas)
 canvas.create_window((0, 0), window=cerceve, anchor='nw')
-#canvasa scrollbar ekle
-def on_frame_configure(event):
-    canvas.configure(scrollregion=canvas.bbox("all"))
 
-cerceve.bind("<Configure>", on_frame_configure)
+
+cerceve.bind("<Configure>", kaydirma_cubugu)
 
 
 #ent=Entry(pencere, width=50)
