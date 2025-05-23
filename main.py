@@ -232,7 +232,7 @@ def list_shows(name):
     data = get_data(name)
     download_resim(data)
     for idx, i in enumerate(data["result"]):
-        lbl = Label(cerceve, font="Century 16", borderwidth=6, relief="solid",justify=LEFT,
+        lbl = Label(cerceve, font="Century 16", borderwidth=3, relief="solid",justify=LEFT,
                     text="İsim:" + i["Title"] + "\n" +
                          "Yıl:" + i["Year"] + "\n" +
                          "Tür:" + i["Type"])
